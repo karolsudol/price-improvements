@@ -1,9 +1,17 @@
 import pandas as pd
+import os
+from dotenv import load_dotenv
 import requests
 from datetime import datetime, timedelta
 from dune_client.types import QueryParameter
 from dune_client.client import DuneClient
 from dune_client.query import QueryBase
+
+try:
+    load_dotenv()
+    DUNE_API_KEY = os.getenv("DUNE_API_KEY")
+except FileNotFoundError:
+    print("Error: .env file not found")
 
 try:
     from airflow import DAG
@@ -47,7 +55,7 @@ def get_cow_swap_data(**kwargs):
             ),
         ],
     )
-    dune = DuneClient.from_env()
+    dune = DuneClient(api_key=DUNE_API_KEY)
     results_df = dune.run_query_dataframe(query)
 
     # Store results in PostgreSQL
