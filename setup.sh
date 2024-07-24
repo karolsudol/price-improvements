@@ -19,7 +19,14 @@ check_docker_compose() {
     fi
 }
 
-# Main setup function
+run_tests() {
+    echo "Running unit tests..."
+    make test-unit
+
+    echo "Running end-to-end tests..."
+    make test-e2e
+}
+
 main() {
     check_docker
     check_docker_compose
@@ -30,6 +37,9 @@ main() {
     echo "Building Docker images..."
     make build
 
+    # Run tests
+    echo "Running tests..."
+    run_tests
     # Initialize Airflow
     echo "Initializing Airflow..."
     make init

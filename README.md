@@ -54,6 +54,27 @@ To modify the analysis or add new features:
 2. Rebuild the Docker images using `make build`
 3. Restart the services using `make down` followed by `make up`
 
+## Testing
+
+This project includes both unit tests and end-to-end tests for the Airflow DAG.
+
+To run all tests:
+```Makefile
+make test
+```
+
+To run only unit tests:
+```Makefile
+make test-unit
+```
+
+To run only end-to-end tests:
+```
+make test-e2e   
+```
+
+Tests are automatically run during the setup process. If you make changes to the DAG, make sure to run the tests again to ensure everything is working correctly.
+
 ## Troubleshooting
 
 If you encounter any issues:
