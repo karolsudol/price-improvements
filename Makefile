@@ -1,4 +1,6 @@
-.PHONY: build up down logs shell
+# Makefile
+
+.PHONY: build up down logs shell init run all
 
 build:
 	docker-compose build
@@ -23,3 +25,6 @@ init:
 
 run:
 	docker-compose up
+
+all:
+	./setup.sh
