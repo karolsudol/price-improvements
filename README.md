@@ -1,6 +1,7 @@
 # CoW Swap Price Improvement Analysis
 
 This project sets up an Airflow environment to analyze the price improvement of CoW Swap compared to the average market.
+Dag is marked as failed when no data was extracted / calculated.
 
 
 ## Prerequisites
@@ -85,12 +86,12 @@ Tests are automatically run during the setup process. If you make changes to the
 
 ## Acces Fetched Data
 
-```sql
-SELECT * FROM price_improvement;
-```
-
 ```sh
 psql -h localhost -p 5432 -U airflow -d airflow
+```
+
+```sql
+SELECT * FROM price_improvement;
 ```
 
 ```sql
@@ -120,12 +121,13 @@ echo -e "AIRFLOW_UID=$(id -u)\nAIRFLOW_GID=0" > .env
 MIT License
 
 ## TODO:
-
-- set up a CI/CD pipeline with Airflow for versions control inc DBT
-- set airflow in managed cloud env (Cloud Composer)
-- set DBT in managed cloud env (Cloud Composer)
-- replace Postgres with managed version as CloudSQL or Data WareHouse such as Snowflake or BigQuery
-- set up a Slack/Discord channel for alerts
-- create dashboards for the results etc
+- fix e2e in actions during merge to main
+- model the data tables better
+- build better analytics from the results - with dashboards and thershold alerts
+- set Airflow in the cloud
+- create data warehouse separating storage and compute
+- set DBT as query version control tool
+- module out the DBT models and seeds
+- add schema modules etc
 
 

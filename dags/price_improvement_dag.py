@@ -11,8 +11,8 @@ from airflow.exceptions import AirflowException
 DUNE_API_KEY = Variable.get("DUNE_API_KEY")
 DUNE_QUERY_ID = int(Variable.get("DUNE_QUERY_ID"))
 
-START_DATE = datetime(2024, 7, 1)
-END_DATE = datetime(2024, 7, 1)
+START_DATE = "2024-07-01"
+END_DATE = "2024-07-01"
 
 try:
     from airflow import DAG
@@ -39,16 +39,16 @@ def get_cow_swap_data(**kwargs):
     query = QueryBase(
         name="CoW Swap USDC-WETH Trades",
         query_id=DUNE_QUERY_ID,
-        # params=[
-        #     QueryParameter.date_type(
-        #         name="StartDate",
-        #         value=START_DATE.strftime("%Y-%m-%d %H:%M:%S"),
-        #     ),
-        #     QueryParameter.date_type(
-        #         name="EndDate",
-        #         value=END_DATE.strftime("%Y-%m-%d %H:%M:%S"),
-        #     ),
-        # ],
+        params=[
+            QueryParameter.text_type(
+                name="StartDate",
+                value=START_DATE,
+            ),
+            QueryParameter.text_type(
+                name="EndDate",
+                value=END_DATE,
+            ),
+        ],
     )
     dune = DuneClient(
         api_key=DUNE_API_KEY, request_timeout=600
@@ -68,11 +68,11 @@ def get_cow_swap_data(**kwargs):
 
 def get_baseline_prices(**kwargs):
     # Define START_DATE and END_DATE from kwargs if needed
-    execution_date = kwargs["execution_date"]
-    start_date = datetime.combine(
-        execution_date.date(), datetime.min.time()
-    ) - timedelta(days=1)
-    end_date = datetime.combine(execution_date.date(), datetime.min.time())
+    # Convert string dates to datetime objects
+    start_date = datetime.strptime(START_DATE, "%Y-%m-%d")
+    end_date = datetime.strptime(END_DATE, "%Y-%m-%d") + timedelta(
+        days=1
+    )  # End of the day
 
     # API request URL with correct timestamps
     url = f"https://api.coingecko.com/api/v3/coins/ethereum/market_chart/range?vs_currency=usd&from={int(start_date.timestamp())}&to={int(end_date.timestamp())}"
@@ -115,30 +115,37 @@ def calculate_price_improvement(**kwargs):
         "SELECT * FROM cow_swap_data", pg_hook.get_sqlalchemy_engine()
     )
     baseline_prices = pd.read_sql(
-        "SELECT date, price FROM baseline_prices",
+        "SELECT * FROM baseline_prices",
         pg_hook.get_sqlalchemy_engine(),
-        parse_dates=["date"],
+        index_col="date",
     )
+
+    # Ensure there are no duplicate indices by aggregating them
+    baseline_prices = baseline_prices.groupby(baseline_prices.index).mean()
 
     # Prepare cow_data DataFrame
     cow_data["date"] = pd.to_datetime(cow_data["block_time"]).dt.date
 
-    # Join cow_data with baseline_prices on the 'date' column
-    cow_data = cow_data.merge(baseline_prices, on="date", how="left")
+    # Debug: Print the first few rows of baseline_prices
+    print("Baseline Prices:")
+    print(baseline_prices.head())
 
-    # Debug: Print the first few rows of the merged DataFrame
-    print("Cow Data after Merging with Baseline Prices:")
+    # Map baseline prices to cow_data
+    cow_data["baseline_price"] = cow_data["date"].map(baseline_prices["price"])
+
+    # Debug: Print the first few rows of cow_data after mapping
+    print("Cow Data after Mapping Baseline Prices:")
     print(cow_data.head())
 
     # Calculate additional columns
     cow_data["baseline_buy_value"] = (
-        cow_data["atoms_sold"] * cow_data["price"] / 1e6
+        cow_data["atoms_sold"] * cow_data["baseline_price"] / 1e6
     )  # Assuming USDC has 6 decimals
     cow_data["price_improvement"] = (
         cow_data["buy_value_usd"] - cow_data["baseline_buy_value"]
     )
 
-    # Debug: Print the first few rows after calculations
+    # Debug: Print the first few rows of cow_data after calculations
     print("Cow Data after Calculations:")
     print(cow_data.head())
 
