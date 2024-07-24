@@ -4,10 +4,16 @@ from datetime import datetime, timedelta
 from dune_client.types import QueryParameter
 from dune_client.client import DuneClient
 from dune_client.query import QueryBase
-import psycopg2
-from airflow import DAG
-from airflow.operators.python_operator import PythonOperator
-from airflow.hooks.postgres_hook import PostgresHook
+
+try:
+    from airflow import DAG
+    from airflow.operators.python import PythonOperator
+    from airflow.providers.postgres.hooks.postgres import PostgresHook
+
+    AIRFLOW_AVAILABLE = True
+except ImportError:
+    AIRFLOW_AVAILABLE = False
+    print("Airflow not available. Running in local mode.")
 
 
 # Function to get CoW Swap data from Dune Analytics
@@ -104,44 +110,54 @@ def calculate_price_improvement(**kwargs):
     print(f"Total trades analyzed: {len(cow_data)}")
 
 
-# Airflow DAG definition
-default_args = {
-    "owner": "airflow",
-    "depends_on_past": False,
-    "start_date": datetime(2024, 7, 24),
-    "email_on_failure": False,
-    "email_on_retry": False,
-    "retries": 1,
-    "retry_delay": timedelta(minutes=5),
-}
+if AIRFLOW_AVAILABLE:
+    default_args = {
+        "owner": "airflow",
+        "depends_on_past": False,
+        "start_date": datetime(2024, 7, 24),
+        "email_on_failure": False,
+        "email_on_retry": False,
+        "retries": 1,
+        "retry_delay": timedelta(minutes=5),
+    }
 
-dag = DAG(
-    "cow_swap_price_improvement",
-    default_args=default_args,
-    description="A DAG to analyze CoW Swap price improvement",
-    schedule_interval="0 9 * * *",  # Run daily at 9 AM UTC
-    catchup=False,
-)
+    dag = DAG(
+        "cow_swap_price_improvement",
+        default_args=default_args,
+        description="A DAG to analyze CoW Swap price improvement",
+        schedule_interval="0 9 * * *",  # Run daily at 9 AM UTC
+        catchup=False,
+    )
 
-dune_task = PythonOperator(
-    task_id="get_cow_swap_data",
-    python_callable=get_cow_swap_data,
-    provide_context=True,
-    dag=dag,
-)
+    dune_task = PythonOperator(
+        task_id="get_cow_swap_data",
+        python_callable=get_cow_swap_data,
+        provide_context=True,
+        dag=dag,
+    )
 
-coingecko_task = PythonOperator(
-    task_id="get_baseline_prices",
-    python_callable=get_baseline_prices,
-    provide_context=True,
-    dag=dag,
-)
+    coingecko_task = PythonOperator(
+        task_id="get_baseline_prices",
+        python_callable=get_baseline_prices,
+        provide_context=True,
+        dag=dag,
+    )
 
-analysis_task = PythonOperator(
-    task_id="calculate_price_improvement",
-    python_callable=calculate_price_improvement,
-    provide_context=True,
-    dag=dag,
-)
+    analysis_task = PythonOperator(
+        task_id="calculate_price_improvement",
+        python_callable=calculate_price_improvement,
+        provide_context=True,
+        dag=dag,
+    )
 
-dune_task >> coingecko_task >> analysis_task
+    dune_task >> coingecko_task >> analysis_task
+
+else:
+    print("Airflow not available. DAG not created.")
+
+# Add this for local testing
+if __name__ == "__main__":
+    # This will allow you to run the script locally for testing
+    get_cow_swap_data(execution_date=datetime.now())
+    get_baseline_prices(execution_date=datetime.now())
+    calculate_price_improvement(execution_date=datetime.now())
