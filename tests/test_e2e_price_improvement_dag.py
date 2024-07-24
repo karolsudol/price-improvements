@@ -3,6 +3,7 @@ from airflow.models import DagBag
 from airflow.utils.session import create_session
 from airflow.utils.dates import days_ago
 from airflow.utils.state import State
+from airflow.executors.executor_loader import get_default_executor
 
 
 class TestPriceImprovementDagE2E(unittest.TestCase):
@@ -11,6 +12,7 @@ class TestPriceImprovementDagE2E(unittest.TestCase):
         self.dagbag = DagBag(dag_folder="dags", include_examples=False)
         self.dag = self.dagbag.get_dag(dag_id="cow_swap_price_improvement")
         self.execution_date = days_ago(1)
+        self.execution_date = datetime.utcnow() - duration(days=1)
 
     def test_dag_e2e(self):
         with create_session() as session:

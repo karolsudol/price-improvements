@@ -16,7 +16,6 @@ except ImportError:
     print("Airflow not available. Running in local mode.")
 
 
-# Function to get CoW Swap data from Dune Analytics
 def get_cow_swap_data(**kwargs):
     execution_date = kwargs["execution_date"]
     start_date = execution_date.date() - timedelta(days=1)
@@ -27,10 +26,16 @@ def get_cow_swap_data(**kwargs):
         query_id=1215383,  # Replace with the actual query ID
         params=[
             QueryParameter.date_type(
-                name="StartDate", value=start_date.strftime("%Y-%m-%d")
+                name="StartDate",
+                value=datetime.combine(start_date, datetime.min.time()).strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                ),
             ),
             QueryParameter.date_type(
-                name="EndDate", value=end_date.strftime("%Y-%m-%d")
+                name="EndDate",
+                value=datetime.combine(end_date, datetime.min.time()).strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                ),
             ),
             QueryParameter.text_type(
                 name="BuyTokenAddress",

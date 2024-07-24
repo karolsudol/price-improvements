@@ -3,14 +3,6 @@
 This project sets up an Airflow environment to analyze the price improvement of CoW Swap compared to the average market.
 
 
-## Airflow
-local airflow will be available on http://localhost:8080
-
-## DB
-```bash
-psql -h your_machine_ip -p 5432 -U airflow -d airflow
-```
-
 
 ## Prerequisites
 
@@ -51,6 +43,7 @@ If you prefer to run the commands manually, you can use the following Make comma
 ## Project Structure
 
 - `dags/price_improvement_dag.py`: The main Airflow DAG file
+- `dbt_project/` DBT config example
 - `Dockerfile`: Defines the Docker image for Airflow
 - `docker-compose.yml`: Defines the services (Airflow, PostgreSQL)
 - `requirements.txt`: Lists the Python dependencies
@@ -100,3 +93,13 @@ mkdir ./dags ./logs ./plugins
 echo -e "AIRFLOW_UID=$(id -u)\nAIRFLOW_GID=0" > .env
 ```
 
+
+
+## Airflow
+http://localhost:8080
+http://localhost:8080/health
+
+## PSQL
+```bash
+psql -h your_machine_ip -p 5432 -U airflow -d airflow
+```
