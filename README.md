@@ -2,6 +2,16 @@
 
 This project sets up an Airflow environment to analyze the price improvement of CoW Swap compared to the average market.
 
+
+## Airflow
+local airflow will be available on http://localhost:8080
+
+## DB
+```bash
+psql -h your_machine_ip -p 5432 -U airflow -d airflow
+```
+
+
 ## Prerequisites
 
 - Docker
@@ -81,3 +91,12 @@ If you encounter any issues:
 1. Check the logs using `make logs`
 2. Ensure all required ports are available (8080 for Airflow webserver)
 3. Try stopping all services with `make down`, then start again with `make up`
+4. Create dags, logs and plugins folder inside the project directory
+```bash
+mkdir ./dags ./logs ./plugins
+```
+5. Set user permissions for Airflow to your current user
+```bash
+echo -e "AIRFLOW_UID=$(id -u)\nAIRFLOW_GID=0" > .env
+```
+
