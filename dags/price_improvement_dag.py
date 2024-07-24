@@ -84,6 +84,9 @@ def get_baseline_prices(**kwargs):
     prices["date"] = pd.to_datetime(prices["timestamp"], unit="ms").dt.date
     prices = prices.set_index("date")
 
+    # Limit to only 10 records
+    prices = prices.head(10)
+
     # Ensure that DataFrame contains data
     if prices.empty:
         raise ValueError(
@@ -112,27 +115,32 @@ def calculate_price_improvement(**kwargs):
         "SELECT * FROM cow_swap_data", pg_hook.get_sqlalchemy_engine()
     )
     baseline_prices = pd.read_sql(
-        "SELECT * FROM baseline_prices",
+        "SELECT date, price FROM baseline_prices",
         pg_hook.get_sqlalchemy_engine(),
-        index_col="date",
+        parse_dates=["date"],
     )
-
-    # Ensure there are no duplicate indices by aggregating them
-    baseline_prices = baseline_prices.groupby(baseline_prices.index).mean()
 
     # Prepare cow_data DataFrame
     cow_data["date"] = pd.to_datetime(cow_data["block_time"]).dt.date
 
-    # Map baseline prices to cow_data
-    cow_data["baseline_price"] = cow_data["date"].map(baseline_prices["price"])
+    # Join cow_data with baseline_prices on the 'date' column
+    cow_data = cow_data.merge(baseline_prices, on="date", how="left")
+
+    # Debug: Print the first few rows of the merged DataFrame
+    print("Cow Data after Merging with Baseline Prices:")
+    print(cow_data.head())
 
     # Calculate additional columns
     cow_data["baseline_buy_value"] = (
-        cow_data["atoms_sold"] * cow_data["baseline_price"] / 1e6
+        cow_data["atoms_sold"] * cow_data["price"] / 1e6
     )  # Assuming USDC has 6 decimals
     cow_data["price_improvement"] = (
         cow_data["buy_value_usd"] - cow_data["baseline_buy_value"]
     )
+
+    # Debug: Print the first few rows after calculations
+    print("Cow Data after Calculations:")
+    print(cow_data.head())
 
     # Store results in PostgreSQL
     with pg_hook.get_sqlalchemy_engine().connect() as conn:
