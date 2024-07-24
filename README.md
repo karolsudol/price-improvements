@@ -1,1 +1,62 @@
-# price-improvements
+# CoW Swap Price Improvement Analysis
+
+This project sets up an Airflow environment to analyze the price improvement of CoW Swap compared to the average market.
+
+## Prerequisites
+
+- Docker
+- Docker Compose
+- Make
+
+## Quick Start
+
+To set up and run the entire project, simply execute:
+```sh
+chmod +x setup.sh
+./setup.sh
+```
+
+This script will:
+1. Check if Docker and Docker Compose are installed
+2. Build the necessary Docker images
+3. Initialize Airflow
+4. Start the Airflow services
+5. Display the logs
+
+Once the setup is complete, you can access the Airflow web interface at http://localhost:8080 with the following credentials:
+- Username: admin
+- Password: admin
+
+## Manual Setup
+
+If you prefer to run the commands manually, you can use the following Make commands:
+
+- `make build`: Build the Docker images
+- `make init`: Initialize Airflow
+- `make up`: Start Airflow services
+- `make down`: Stop Airflow services
+- `make logs`: View logs
+- `make shell`: Access the Airflow shell
+
+## Project Structure
+
+- `dags/price_improvement_dag.py`: The main Airflow DAG file
+- `Dockerfile`: Defines the Docker image for Airflow
+- `docker-compose.yml`: Defines the services (Airflow, PostgreSQL)
+- `requirements.txt`: Lists the Python dependencies
+- `Makefile`: Contains shortcuts for common commands
+- `setup.sh`: Script to automate the entire setup process
+
+## Customization
+
+To modify the analysis or add new features:
+1. Edit the `dags/price_improvement_dag.py` file
+2. Rebuild the Docker images using `make build`
+3. Restart the services using `make down` followed by `make up`
+
+## Troubleshooting
+
+If you encounter any issues:
+1. Check the logs using `make logs`
+2. Ensure all required ports are available (8080 for Airflow webserver)
+3. Try stopping all services with `make down`, then start again with `make up`
