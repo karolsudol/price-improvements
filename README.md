@@ -3,7 +3,6 @@
 This project sets up an Airflow environment to analyze the price improvement of CoW Swap compared to the average market.
 
 
-
 ## Prerequisites
 
 - Docker
@@ -43,7 +42,7 @@ If you prefer to run the commands manually, you can use the following Make comma
 ## Project Structure
 
 - `dags/price_improvement_dag.py`: The main Airflow DAG file
-- `dbt_project/` DBT config example
+- `dbt_project/` DBT project config example - includes the DBT models and seeds
 - `Dockerfile`: Defines the Docker image for Airflow
 - `docker-compose.yml`: Defines the services (Airflow, PostgreSQL)
 - `requirements.txt`: Lists the Python dependencies
@@ -93,13 +92,14 @@ mkdir ./dags ./logs ./plugins
 echo -e "AIRFLOW_UID=$(id -u)\nAIRFLOW_GID=0" > .env
 ```
 
+## License
+MIT License
 
+## TODO:
 
-## Airflow
-http://localhost:8080
-http://localhost:8080/health
+- set airflow in managed cloud env (Cloud Composer)
+- set DBT in managed cloud env (Cloud Composer)
+- set up a CI/CD pipeline with DBT for versions control
+- replace Postgres with managed version as CloudSQL or Data WareHouse such as Snowflake or BigQuery
+- set up a Slack?Discord channel for alerts
 
-## PSQL
-```bash
-psql -h your_machine_ip -p 5432 -U airflow -d airflow
-```
