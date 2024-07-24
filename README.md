@@ -8,6 +8,11 @@ This project sets up an Airflow environment to analyze the price improvement of 
 - Docker
 - Docker Compose
 - Make
+- DUNE_API_KEY: set in airflow variables in UI or:
+```sh
+airflow variables set DUNE_API_KEY your_dune_api_key_here
+
+```
 
 ## Quick Start
 
@@ -97,9 +102,10 @@ MIT License
 
 ## TODO:
 
+- set up a CI/CD pipeline with Airflow for versions control inc DBT
 - set airflow in managed cloud env (Cloud Composer)
 - set DBT in managed cloud env (Cloud Composer)
-- set up a CI/CD pipeline with DBT for versions control
 - replace Postgres with managed version as CloudSQL or Data WareHouse such as Snowflake or BigQuery
-- set up a Slack?Discord channel for alerts
+- set up a Slack/Discord channel for alerts
+
 

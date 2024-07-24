@@ -1,17 +1,12 @@
 import pandas as pd
-import os
-from dotenv import load_dotenv
 import requests
 from datetime import datetime, timedelta
 from dune_client.types import QueryParameter
 from dune_client.client import DuneClient
 from dune_client.query import QueryBase
+from airflow.models import Variable
 
-try:
-    load_dotenv()
-    DUNE_API_KEY = os.getenv("DUNE_API_KEY")
-except FileNotFoundError:
-    print("Error: .env file not found")
+DUNE_API_KEY = Variable.get("DUNE_API_KEY")
 
 try:
     from airflow import DAG
@@ -25,6 +20,7 @@ except ImportError:
 
 
 def get_cow_swap_data(**kwargs):
+
     execution_date = kwargs["execution_date"]
     start_date = execution_date.date() - timedelta(days=1)
     end_date = execution_date.date()
@@ -130,7 +126,7 @@ if AIRFLOW_AVAILABLE:
         "start_date": datetime(2024, 7, 24),
         "email_on_failure": False,
         "email_on_retry": False,
-        "retries": 1,
+        "retries": 0,
         "retry_delay": timedelta(minutes=5),
     }
 

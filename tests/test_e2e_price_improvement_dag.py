@@ -1,26 +1,33 @@
 import unittest
+import os
 from airflow import settings
 from airflow.models import DagBag
 from airflow.utils.session import create_session
 from airflow.utils.state import State
-from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.types import DagRunType
 import pendulum
+from airflow.configuration import conf
+
+# Set Airflow home
+os.environ["AIRFLOW_HOME"] = "/home/elcomandante/airflow"
 
 # Ensure the SQLite database connection is set
-settings.conf.set(
-    "core", "sql_alchemy_conn", "sqlite:////home/elcomandante/airflow/airflow.db"
-)
+conf.set("core", "sql_alchemy_conn", "sqlite:////home/elcomandante/airflow/airflow.db")
 
 
 class TestPriceImprovementDagE2E(unittest.TestCase):
 
     def setUp(self):
         self.dagbag = DagBag(dag_folder=settings.DAGS_FOLDER, include_examples=False)
-        self.dag = self.dagbag.get_dag(dag_id="test_price_improvement_dag")
+        print(f"Loaded DAGs: {self.dagbag.dag_ids}")  # Debug print
+        self.dag = self.dagbag.get_dag(dag_id="cow_swap_price_improvement")
         self.execution_date = pendulum.now().subtract(days=1)
 
     def test_dag_e2e(self):
+        if self.dag is None:
+            print("Available DAGs:", self.dagbag.dag_ids)  # Print available DAG IDs
+            self.fail("DAG 'cow_swap_price_improvement' not found in DagBag")
+
         with create_session() as session:
             # Create a DagRun for the execution date
             dag_run = self.dag.create_dagrun(
@@ -36,7 +43,7 @@ class TestPriceImprovementDagE2E(unittest.TestCase):
                     start_date=self.execution_date,
                     end_date=self.execution_date,
                     run_id=dag_run.run_id,
-                    executor=ExecutorLoader().get_default_executor(),  # Get default executor from ExecutorLoader
+                    executor=None,  # Let Airflow choose the default executor
                     session=session,
                 )
 
