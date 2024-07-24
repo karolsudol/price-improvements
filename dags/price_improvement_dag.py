@@ -9,11 +9,22 @@ try:
     from airflow import DAG
     from airflow.operators.python import PythonOperator
     from airflow.providers.postgres.hooks.postgres import PostgresHook
+    from airflow.operators.bash import BashOperator
 
     AIRFLOW_AVAILABLE = True
 except ImportError:
     AIRFLOW_AVAILABLE = False
     print("Airflow not available. Running in local mode.")
+
+
+def run_dbt():
+    return BashOperator(
+        task_id="run_dbt",
+        bash_command="cd /opt/airflow/dbt_project && dbt run",
+        env={
+            "DBT_PROFILES_DIR": "/opt/airflow/dbt_project",
+        },
+    )
 
 
 # Function to get CoW Swap data from Dune Analytics
