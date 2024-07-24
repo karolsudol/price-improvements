@@ -7,6 +7,7 @@ from dune_client.query import QueryBase
 from airflow.models import Variable
 
 DUNE_API_KEY = Variable.get("DUNE_API_KEY")
+DUNE_QUERY_ID = int(Variable.get("DUNE_QUERY_ID"))
 
 try:
     from airflow import DAG
@@ -20,38 +21,28 @@ except ImportError:
 
 
 def get_cow_swap_data(**kwargs):
-
-    execution_date = kwargs["execution_date"]
-    start_date = execution_date.date() - timedelta(days=1)
-    end_date = execution_date.date()
+    # Fixed start and end dates
+    start_date = datetime(2024, 7, 1)
+    end_date = datetime(2024, 7, 1)
 
     query = QueryBase(
         name="CoW Swap USDC-WETH Trades",
-        query_id=1215383,  # Replace with the actual query ID
+        query_id=DUNE_QUERY_ID,
         params=[
             QueryParameter.date_type(
                 name="StartDate",
-                value=datetime.combine(start_date, datetime.min.time()).strftime(
-                    "%Y-%m-%d %H:%M:%S"
-                ),
+                value=start_date.strftime("%Y-%m-%d %H:%M:%S"),
             ),
             QueryParameter.date_type(
                 name="EndDate",
-                value=datetime.combine(end_date, datetime.min.time()).strftime(
-                    "%Y-%m-%d %H:%M:%S"
-                ),
-            ),
-            QueryParameter.text_type(
-                name="BuyTokenAddress",
-                value="0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
-            ),
-            QueryParameter.text_type(
-                name="SellTokenAddress",
-                value="0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+                value=end_date.strftime("%Y-%m-%d %H:%M:%S"),
             ),
         ],
     )
-    dune = DuneClient(api_key=DUNE_API_KEY)
+    dune = DuneClient(
+        api_key=DUNE_API_KEY, request_timeout=600
+    )  # Set timeout to 10 minutes
+
     results_df = dune.run_query_dataframe(query)
 
     # Store results in PostgreSQL
@@ -64,11 +55,10 @@ def get_cow_swap_data(**kwargs):
     )
 
 
-# Function to get baseline prices from CoinGecko
 def get_baseline_prices(**kwargs):
-    execution_date = kwargs["execution_date"]
-    start_date = execution_date.date() - timedelta(days=1)
-    end_date = execution_date.date()
+    # Fixed start and end dates
+    start_date = datetime(2024, 7, 1)
+    end_date = datetime(2024, 7, 1)
 
     url = f"https://api.coingecko.com/api/v3/coins/ethereum/market_chart/range?vs_currency=usd&from={int(start_date.timestamp())}&to={int(end_date.timestamp())}"
     response = requests.get(url)
@@ -84,7 +74,6 @@ def get_baseline_prices(**kwargs):
     )
 
 
-# Function to calculate price improvement
 def calculate_price_improvement(**kwargs):
     pg_hook = PostgresHook(postgres_conn_id="postgres_default")
 
@@ -127,7 +116,7 @@ if AIRFLOW_AVAILABLE:
         "email_on_failure": False,
         "email_on_retry": False,
         "retries": 0,
-        "retry_delay": timedelta(minutes=5),
+        "retry_delay": timedelta(minutes=5),  # Fixed import issue
     }
 
     dag = DAG(
@@ -167,6 +156,6 @@ else:
 # Add this for local testing
 if __name__ == "__main__":
     # This will allow you to run the script locally for testing
-    get_cow_swap_data(execution_date=datetime.now())
-    get_baseline_prices(execution_date=datetime.now())
-    calculate_price_improvement(execution_date=datetime.now())
+    get_cow_swap_data()
+    get_baseline_prices()
+    calculate_price_improvement()
