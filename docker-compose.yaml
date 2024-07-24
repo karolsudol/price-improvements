@@ -1,0 +1,36 @@
+version: "3"
+services:
+  airflow-webserver:
+    build: .
+    command: webserver
+    ports:
+      - "8080:8080"
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+      - AIRFLOW__CORE__FERNET_KEY=46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs:rw
+      - ./plugins:/opt/airflow/plugins
+    depends_on:
+      - postgres
+
+  airflow-scheduler:
+    build: .
+    command: scheduler
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+      - AIRFLOW__CORE__FERNET_KEY=46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs:rw
+      - ./plugins:/opt/airflow/plugins
+    depends_on:
+      - postgres
+
+volumes:
+  postgres-db-volume:
