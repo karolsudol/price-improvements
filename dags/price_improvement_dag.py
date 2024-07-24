@@ -5,9 +5,14 @@ from dune_client.types import QueryParameter
 from dune_client.client import DuneClient
 from dune_client.query import QueryBase
 from airflow.models import Variable
+from airflow.hooks.base import BaseHook
+from airflow.exceptions import AirflowException
 
 DUNE_API_KEY = Variable.get("DUNE_API_KEY")
 DUNE_QUERY_ID = int(Variable.get("DUNE_QUERY_ID"))
+
+START_DATE = datetime(2024, 7, 1)
+END_DATE = datetime(2024, 7, 1)
 
 try:
     from airflow import DAG
@@ -20,24 +25,30 @@ except ImportError:
     print("Airflow not available. Running in local mode.")
 
 
+def check_postgres_connection():
+    try:
+        conn = BaseHook.get_connection("postgres_default")
+        print(f"Connection {conn.conn_id} is valid.")
+    except AirflowException as e:
+        print(f"Connection error: {str(e)}")
+        raise
+
+
 def get_cow_swap_data(**kwargs):
-    # Fixed start and end dates
-    start_date = datetime(2024, 7, 1)
-    end_date = datetime(2024, 7, 1)
 
     query = QueryBase(
         name="CoW Swap USDC-WETH Trades",
         query_id=DUNE_QUERY_ID,
-        params=[
-            QueryParameter.date_type(
-                name="StartDate",
-                value=start_date.strftime("%Y-%m-%d %H:%M:%S"),
-            ),
-            QueryParameter.date_type(
-                name="EndDate",
-                value=end_date.strftime("%Y-%m-%d %H:%M:%S"),
-            ),
-        ],
+        # params=[
+        #     QueryParameter.date_type(
+        #         name="StartDate",
+        #         value=START_DATE.strftime("%Y-%m-%d %H:%M:%S"),
+        #     ),
+        #     QueryParameter.date_type(
+        #         name="EndDate",
+        #         value=END_DATE.strftime("%Y-%m-%d %H:%M:%S"),
+        #     ),
+        # ],
     )
     dune = DuneClient(
         api_key=DUNE_API_KEY, request_timeout=600
@@ -56,22 +67,41 @@ def get_cow_swap_data(**kwargs):
 
 
 def get_baseline_prices(**kwargs):
-    # Fixed start and end dates
-    start_date = datetime(2024, 7, 1)
-    end_date = datetime(2024, 7, 1)
+    # Define START_DATE and END_DATE from kwargs if needed
+    execution_date = kwargs["execution_date"]
+    start_date = datetime.combine(
+        execution_date.date(), datetime.min.time()
+    ) - timedelta(days=1)
+    end_date = datetime.combine(execution_date.date(), datetime.min.time())
 
+    # API request URL with correct timestamps
     url = f"https://api.coingecko.com/api/v3/coins/ethereum/market_chart/range?vs_currency=usd&from={int(start_date.timestamp())}&to={int(end_date.timestamp())}"
     response = requests.get(url)
     data = response.json()
+
+    # Create DataFrame
     prices = pd.DataFrame(data["prices"], columns=["timestamp", "price"])
     prices["date"] = pd.to_datetime(prices["timestamp"], unit="ms").dt.date
-    prices = prices.set_index("date")["price"]
+    prices = prices.set_index("date")
+
+    # Ensure that DataFrame contains data
+    if prices.empty:
+        raise ValueError(
+            "The prices DataFrame is empty. No data was fetched from CoinGecko."
+        )
 
     # Store results in PostgreSQL
     pg_hook = PostgresHook(postgres_conn_id="postgres_default")
-    prices.to_sql(
-        "baseline_prices", pg_hook.get_sqlalchemy_engine(), if_exists="replace"
-    )
+    with pg_hook.get_sqlalchemy_engine().connect() as conn:
+        prices.to_sql(
+            "baseline_prices",
+            conn,
+            if_exists="replace",
+            index=True,  # Keep the date as index
+            index_label="date",  # Specify index label to match table schema
+        )
+
+    print(f"Stored {len(prices)} rows in the 'baseline_prices' table.")
 
 
 def calculate_price_improvement(**kwargs):
@@ -87,8 +117,16 @@ def calculate_price_improvement(**kwargs):
         index_col="date",
     )
 
+    # Ensure there are no duplicate indices by aggregating them
+    baseline_prices = baseline_prices.groupby(baseline_prices.index).mean()
+
+    # Prepare cow_data DataFrame
     cow_data["date"] = pd.to_datetime(cow_data["block_time"]).dt.date
+
+    # Map baseline prices to cow_data
     cow_data["baseline_price"] = cow_data["date"].map(baseline_prices["price"])
+
+    # Calculate additional columns
     cow_data["baseline_buy_value"] = (
         cow_data["atoms_sold"] * cow_data["baseline_price"] / 1e6
     )  # Assuming USDC has 6 decimals
@@ -97,13 +135,19 @@ def calculate_price_improvement(**kwargs):
     )
 
     # Store results in PostgreSQL
-    cow_data.to_sql(
-        "price_improvement",
-        pg_hook.get_sqlalchemy_engine(),
-        if_exists="replace",
-        index=False,
-    )
+    with pg_hook.get_sqlalchemy_engine().connect() as conn:
+        # Drop the table if it exists
+        conn.execute("DROP TABLE IF EXISTS price_improvement")
 
+        # Create a new table with the updated data
+        cow_data.to_sql(
+            "price_improvement",
+            pg_hook.get_sqlalchemy_engine(),
+            if_exists="replace",  # 'replace' will drop the table if it exists
+            index=False,  # Do not write row indices
+        )
+
+    # Output some statistics for verification
     print(f"Average price improvement: {cow_data['price_improvement'].mean()} USD")
     print(f"Total trades analyzed: {len(cow_data)}")
 
@@ -127,6 +171,12 @@ if AIRFLOW_AVAILABLE:
         catchup=False,
     )
 
+    check_connection = PythonOperator(
+        task_id="check_postgres_connection",
+        python_callable=check_postgres_connection,
+        dag=dag,
+    )
+
     dune_task = PythonOperator(
         task_id="get_cow_swap_data",
         python_callable=get_cow_swap_data,
@@ -148,7 +198,7 @@ if AIRFLOW_AVAILABLE:
         dag=dag,
     )
 
-    dune_task >> coingecko_task >> analysis_task
+    check_connection >> coingecko_task >> dune_task >> analysis_task
 
 else:
     print("Airflow not available. DAG not created.")
@@ -156,6 +206,7 @@ else:
 # Add this for local testing
 if __name__ == "__main__":
     # This will allow you to run the script locally for testing
-    get_cow_swap_data()
+    check_connection()
     get_baseline_prices()
+    get_cow_swap_data()
     calculate_price_improvement()

@@ -10,7 +10,8 @@ This project sets up an Airflow environment to analyze the price improvement of 
 - Make
 - DUNE_API_KEY: set in airflow variables in UI or:
 ```sh
-airflow variables set DUNE_API_KEY your_dune_api_key_here
+airflow variables set DUNE_API_KEY {your_dune_api_key}
+airflow variables set DUNE_QUERY_ID 3940146
 
 ```
 
@@ -82,6 +83,24 @@ make test-e2e
 
 Tests are automatically run during the setup process. If you make changes to the DAG, make sure to run the tests again to ensure everything is working correctly.
 
+## Acces Fetched Data
+
+```sql
+SELECT * FROM price_improvement;
+```
+
+```sh
+psql -h localhost -p 5432 -U airflow -d airflow
+```
+
+```sql
+SELECT * FROM baseline_prices;
+```
+
+```sql
+SELECT * FROM cow_swap_data;
+```
+
 ## Troubleshooting
 
 If you encounter any issues:
@@ -107,5 +126,6 @@ MIT License
 - set DBT in managed cloud env (Cloud Composer)
 - replace Postgres with managed version as CloudSQL or Data WareHouse such as Snowflake or BigQuery
 - set up a Slack/Discord channel for alerts
+- create dashboards for the results etc
 
 
