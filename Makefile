@@ -1,4 +1,13 @@
-# Makefile
+VENV = venv
+PYTHON = $(VENV)/bin/python
+PIP = $(VENV)/bin/pip
+
+$(VENV)/bin/activate: requirements.txt
+	python3 -m venv $(VENV)
+	$(PIP) install -r requirements.txt
+
+test-unit: $(VENV)/bin/activate
+	$(PYTHON) -m unittest tests/test_price_improvement_dag.py
 
 .PHONY: build up down logs shell init run all
 

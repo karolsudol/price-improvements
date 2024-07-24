@@ -1,8 +1,9 @@
 apache-airflow==2.7.1
-apache-airflow-providers-postgres
-dune-client
-psycopg2-binary
-pandas
-requests
-pytest
-pytest-mock
+apache-airflow-providers-postgres==5.6.0
+dune-client==1.3.0
+psycopg2-binary==2.9.6
+pandas==2.0.3
+requests==2.31.0
+pytest==7.4.0
+pytest-mock==3.11.1
+pendulum==2.1.2
