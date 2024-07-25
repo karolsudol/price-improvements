@@ -1,6 +1,11 @@
+"""
+This module contains an Airflow DAG for analyzing CoW Swap price improvement.
+It fetches data from Dune Analytics and CoinGecko, processes it, and stores the results in PostgreSQL.
+"""
+
+from datetime import datetime, timedelta
 import pandas as pd
 import requests
-from datetime import datetime, timedelta
 from dune_client.types import QueryParameter
 from dune_client.client import DuneClient
 from dune_client.query import QueryBase
@@ -11,8 +16,10 @@ from airflow.exceptions import AirflowException
 DUNE_API_KEY = Variable.get("DUNE_API_KEY")
 DUNE_QUERY_ID = int(Variable.get("DUNE_QUERY_ID"))
 
-START_DATE = "2024-07-01"
-END_DATE = "2024-07-01"
+# Calculate previous day's date in UTC
+PREVIOUS_DAY = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+START_DATE = PREVIOUS_DAY
+END_DATE = PREVIOUS_DAY
 
 try:
     from airflow import DAG
@@ -26,6 +33,7 @@ except ImportError:
 
 
 def check_postgres_connection():
+    """Check if the PostgreSQL connection is valid."""
     try:
         conn = BaseHook.get_connection("postgres_default")
         print(f"Connection {conn.conn_id} is valid.")
@@ -35,7 +43,7 @@ def check_postgres_connection():
 
 
 def get_cow_swap_data(**kwargs):
-
+    """Fetch CoW Swap data from Dune Analytics and store it in PostgreSQL."""
     query = QueryBase(
         name="CoW Swap USDC-WETH Trades",
         query_id=DUNE_QUERY_ID,
@@ -50,13 +58,10 @@ def get_cow_swap_data(**kwargs):
             ),
         ],
     )
-    dune = DuneClient(
-        api_key=DUNE_API_KEY, request_timeout=600
-    )  # Set timeout to 10 minutes
+    dune = DuneClient(api_key=DUNE_API_KEY, request_timeout=600)
 
     results_df = dune.run_query_dataframe(query)
 
-    # Store results in PostgreSQL
     pg_hook = PostgresHook(postgres_conn_id="postgres_default")
     results_df.to_sql(
         "cow_swap_data",
@@ -67,104 +72,109 @@ def get_cow_swap_data(**kwargs):
 
 
 def get_baseline_prices(**kwargs):
-    # Define START_DATE and END_DATE from kwargs if needed
-    # Convert string dates to datetime objects
+    """Fetch baseline prices from CoinGecko and store them in PostgreSQL."""
     start_date = datetime.strptime(START_DATE, "%Y-%m-%d")
-    end_date = datetime.strptime(END_DATE, "%Y-%m-%d") + timedelta(
-        days=1
-    )  # End of the day
+    end_date = datetime.strptime(END_DATE, "%Y-%m-%d") + timedelta(days=1)
 
-    # API request URL with correct timestamps
-    url = f"https://api.coingecko.com/api/v3/coins/ethereum/market_chart/range?vs_currency=usd&from={int(start_date.timestamp())}&to={int(end_date.timestamp())}"
+    url = (
+        f"https://api.coingecko.com/api/v3/coins/ethereum/market_chart/range"
+        f"?vs_currency=usd&from={int(start_date.timestamp())}&to={int(end_date.timestamp())}"
+    )
     response = requests.get(url)
     data = response.json()
 
-    # Create DataFrame
     prices = pd.DataFrame(data["prices"], columns=["timestamp", "price"])
     prices["date"] = pd.to_datetime(prices["timestamp"], unit="ms").dt.date
-    prices = prices.set_index("date")
 
-    # Limit to only 10 records
-    prices = prices.head(10)
-
-    # Ensure that DataFrame contains data
     if prices.empty:
         raise ValueError(
             "The prices DataFrame is empty. No data was fetched from CoinGecko."
         )
 
-    # Store results in PostgreSQL
     pg_hook = PostgresHook(postgres_conn_id="postgres_default")
     with pg_hook.get_sqlalchemy_engine().connect() as conn:
         prices.to_sql(
             "baseline_prices",
             conn,
             if_exists="replace",
-            index=True,  # Keep the date as index
-            index_label="date",  # Specify index label to match table schema
+            index=False,
         )
 
     print(f"Stored {len(prices)} rows in the 'baseline_prices' table.")
 
 
 def calculate_price_improvement(**kwargs):
+    """Calculate price improvement and store results in PostgreSQL."""
     pg_hook = PostgresHook(postgres_conn_id="postgres_default")
 
-    # Fetch data from PostgreSQL
     cow_data = pd.read_sql(
         "SELECT * FROM cow_swap_data", pg_hook.get_sqlalchemy_engine()
     )
     baseline_prices = pd.read_sql(
         "SELECT * FROM baseline_prices",
         pg_hook.get_sqlalchemy_engine(),
-        index_col="date",
     )
 
-    # Ensure there are no duplicate indices by aggregating them
-    baseline_prices = baseline_prices.groupby(baseline_prices.index).mean()
+    cow_data["block_time"] = pd.to_datetime(cow_data["block_time"], utc=True)
+    cow_data["timestamp"] = cow_data["block_time"]
 
-    # Prepare cow_data DataFrame
-    cow_data["date"] = pd.to_datetime(cow_data["block_time"]).dt.date
-
-    # Debug: Print the first few rows of baseline_prices
-    print("Baseline Prices:")
-    print(baseline_prices.head())
-
-    # Map baseline prices to cow_data
-    cow_data["baseline_price"] = cow_data["date"].map(baseline_prices["price"])
-
-    # Debug: Print the first few rows of cow_data after mapping
-    print("Cow Data after Mapping Baseline Prices:")
-    print(cow_data.head())
-
-    # Calculate additional columns
-    cow_data["baseline_buy_value"] = (
-        cow_data["atoms_sold"] * cow_data["baseline_price"] / 1e6
-    )  # Assuming USDC has 6 decimals
-    cow_data["price_improvement"] = (
-        cow_data["buy_value_usd"] - cow_data["baseline_buy_value"]
+    baseline_prices["timestamp"] = pd.to_datetime(
+        baseline_prices["timestamp"], unit="ms", utc=True
     )
 
-    # Debug: Print the first few rows of cow_data after calculations
-    print("Cow Data after Calculations:")
-    print(cow_data.head())
+    cow_data["timestamp"] = cow_data["timestamp"].dt.floor("T")
+    baseline_prices["timestamp"] = baseline_prices["timestamp"].dt.floor("T")
 
-    # Store results in PostgreSQL
+    cow_data_agg = (
+        cow_data.groupby("timestamp")
+        .agg(
+            {
+                "buy_price": "mean",
+                "buy_value_usd": "mean",
+                "atoms_sold": "mean",
+            }
+        )
+        .reset_index()
+    )
+
+    baseline_prices_agg = (
+        baseline_prices.groupby("timestamp").agg({"price": "mean"}).reset_index()
+    )
+
+    merged_data = pd.merge(
+        baseline_prices_agg, cow_data_agg, on="timestamp", how="inner"
+    )
+
+    merged_data["price_improvement"] = (
+        merged_data["price"] - merged_data["buy_price"]
+    ).round(2)
+
     with pg_hook.get_sqlalchemy_engine().connect() as conn:
-        # Drop the table if it exists
-        conn.execute("DROP TABLE IF EXISTS price_improvement")
-
-        # Create a new table with the updated data
-        cow_data.to_sql(
-            "price_improvement",
-            pg_hook.get_sqlalchemy_engine(),
-            if_exists="replace",  # 'replace' will drop the table if it exists
-            index=False,  # Do not write row indices
+        cow_data_agg.to_sql(
+            "cow_data_aggregated",
+            conn,
+            if_exists="replace",
+            index=False,
         )
 
-    # Output some statistics for verification
-    print(f"Average price improvement: {cow_data['price_improvement'].mean()} USD")
-    print(f"Total trades analyzed: {len(cow_data)}")
+        baseline_prices_agg.to_sql(
+            "baseline_prices_aggregated",
+            conn,
+            if_exists="replace",
+            index=False,
+        )
+
+        merged_data[["timestamp", "price_improvement"]].to_sql(
+            "price_improvement",
+            conn,
+            if_exists="replace",
+            index=False,
+        )
+
+    print(
+        f"Average price improvement: {merged_data['price_improvement'].mean():.2f} USD"
+    )
+    print(f"Total trades analyzed: {len(merged_data)}")
 
 
 if AIRFLOW_AVAILABLE:
@@ -175,14 +185,14 @@ if AIRFLOW_AVAILABLE:
         "email_on_failure": False,
         "email_on_retry": False,
         "retries": 0,
-        "retry_delay": timedelta(minutes=5),  # Fixed import issue
+        "retry_delay": timedelta(minutes=5),
     }
 
     dag = DAG(
         "cow_swap_price_improvement",
         default_args=default_args,
         description="A DAG to analyze CoW Swap price improvement",
-        schedule_interval="0 9 * * *",  # Run daily at 9 AM UTC
+        schedule_interval="0 9 * * *",
         catchup=False,
     )
 
@@ -218,10 +228,7 @@ if AIRFLOW_AVAILABLE:
 else:
     print("Airflow not available. DAG not created.")
 
-# Add this for local testing
 if __name__ == "__main__":
-    # This will allow you to run the script locally for testing
-    check_connection()
     get_baseline_prices()
     get_cow_swap_data()
     calculate_price_improvement()

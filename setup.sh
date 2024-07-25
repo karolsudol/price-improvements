@@ -27,9 +27,33 @@ run_tests() {
     make test-e2e
 }
 
+set_airflow_variables() {
+    echo "Setting Airflow variables..."
+    
+    # Check if .env file exists
+    if [ ! -f .env ]; then
+        echo ".env file not found. Please create a .env file with DUNE_API_KEY and DUNE_QUERY_ID."
+        exit 1
+    fi
+
+    # Read variables from .env file
+    source .env
+
+    # Check if variables are set
+    if [ -z "$DUNE_API_KEY" ] || [ -z "$DUNE_QUERY_ID" ]; then
+        echo "DUNE_API_KEY or DUNE_QUERY_ID is not set in .env file."
+        exit 1
+    fi
+
+    # Set Airflow variables
+    docker-compose run --rm webserver airflow variables set DUNE_API_KEY "$DUNE_API_KEY"
+    docker-compose run --rm webserver airflow variables set DUNE_QUERY_ID "$DUNE_QUERY_ID"
+    echo "Airflow variables set successfully."
+}
+
 main() {
-    check_docker
-    check_docker_compose
+    # check_docker
+    # check_docker_compose
 
     echo "Setting up CoW Swap Price Improvement Analysis..."
 
@@ -40,9 +64,13 @@ main() {
     # Run tests
     echo "Running tests..."
     run_tests
+
     # Initialize Airflow
     echo "Initializing Airflow..."
     make init
+
+    # Set Airflow variables
+    set_airflow_variables
 
     # Start Airflow
     echo "Starting Airflow..."

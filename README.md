@@ -1,11 +1,9 @@
-Here is the revised README.md file with a Table of Contents (TOC) that includes links:
 
 # CoW Swap Price Improvement Analysis
-======================================================
 
 **Table of Contents**
 -------------------
-
+* [TODO](#todo)
 * [Prerequisites](#prerequisites)
 * [Quick Start](#quick-start)
 * [Manual Setup](#manual-setup)
@@ -15,7 +13,28 @@ Here is the revised README.md file with a Table of Contents (TOC) that includes 
 * [Accessing Fetched Data](#accessing-fetched-data)
 * [Troubleshooting](#troubleshooting)
 * [License](#license)
-* [TODO](#todo)
+
+
+### TODO
+------
+`analysis`: currently not to be used for insights, but rather proves technically correct, 
+join was doen on localised utc timestamp but needs more tests to verify the join is correct
+also, it needs to be improved join on larger baseline_prices ensuring data consistency
+
+`optimisations`: partition on dates and add indexes depending in the data size vs query performance and costs and fiter by execution date 
+
+`schemas and sql queries`: currently hardcoded, needs to be set up as a module in DBT with versioning
+
+`cloud deployment`: currently on local but both airflow and DB has to be in serverless and scalable environment
+
+`test`: expand units to cover more cases for each function annd task and integrate E2E tests in cloud env.
+
+`data-warehouse`: potentially set up a cloud based data warehouse with normalised tables while isolating compute and storage, spark is an o overkill for this, but executing queries in a some distributed fashion is a must
+
+`real-time` build geth websocket connection app to fetch and insert data from the contracts in real time so then real time analysis is possible
+
+`modules`: set up a python module classes, so that the code can be reused in other projects
+
 
 ### Prerequisites
 ---------------
@@ -28,9 +47,16 @@ Here is the revised README.md file with a Table of Contents (TOC) that includes 
 -------------
 
 To set up and run the entire project, simply execute:
+
 ```
 chmod +x setup.sh
 ./setup.sh
+```
+
+make sure you set .env with vars:
+```
+DUNE_API_KEY={YOUR_KEY}
+DUNE_QUERY_ID=3940146
 ```
 
 ### Manual Setup
@@ -93,21 +119,14 @@ If you encounter any issues:
 2. Ensure all required ports are available (8080 for Airflow webserver)
 3. Try stopping all services with `make down`, then start again with `make up`
 4. Create dags, logs and plugins folder inside the project directory
-5. Set user permissions for Airflow to your current user
+5. Set user permissions for Airflow to your current user ex: 
+```bash
+sudo chown -R airflow:airflow /opt/airflow
+```
+5. If fails, set manually `DUNE_API_KEY` and `DUNE_QUERY_ID` can be done in airflow.cfg or console
 
 ### License
 -------
 
 MIT License
 
-### TODO
-------
-
-* fix e2e in actions during merge to main
-* model the data tables better
-* build better analytics from the results - with dashboards and threshold alerts
-* set Airflow in the cloud
-* create data warehouse separating storage and compute
-* set DBT as query version control tool
-* module out the DBT models and seeds
-* add schema modules etc
