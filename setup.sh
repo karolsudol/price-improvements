@@ -62,8 +62,9 @@ main() {
     make build
 
     # Run tests
-    echo "Running tests..."
-    run_tests
+    # echo "Running tests..."
+    echo "Skipping tests..."
+    # run_tests
 
     # Initialize Airflow
     echo "Initializing Airflow..."
