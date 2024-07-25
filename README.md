@@ -1,40 +1,39 @@
+Here is the revised README.md file with a Table of Contents (TOC) that includes links:
+
 # CoW Swap Price Improvement Analysis
 ======================================================
 
-## Prerequisites
+**Table of Contents**
+-------------------
+
+* [Prerequisites](#prerequisites)
+* [Quick Start](#quick-start)
+* [Manual Setup](#manual-setup)
+* [Project Structure](#project-structure)
+* [Customization](#customization)
+* [Testing](#testing)
+* [Accessing Fetched Data](#accessing-fetched-data)
+* [Troubleshooting](#troubleshooting)
+* [License](#license)
+* [TODO](#todo)
+
+### Prerequisites
 ---------------
 
 * Docker
 * Docker Compose
 * Make
 
-## Quick Start
+### Quick Start
 -------------
 
 To set up and run the entire project, simply execute:
-```sh
+```
 chmod +x setup.sh
 ./setup.sh
 ```
-This script will:
 
-1. Check if Docker and Docker Compose are installed
-2. Build the necessary Docker images
-3. Initialize Airflow
-4. Start the Airflow services
-5. Display the logs
-
-Once the setup is complete, you can access the Airflow web interface at [http://localhost:8080](http://localhost:8080) with the following credentials:
-
-* Username: admin
-* Password: admin
-* Make sure to set airflow variables:
-```sh
-airflow variables set DUNE_API_KEY {your_dune_api_key}
-airflow variables set DUNE_QUERY_ID 3940146
-```
-
-## Manual Setup
+### Manual Setup
 -------------
 
 If you prefer to run the commands manually, you can use the following Make commands:
@@ -46,7 +45,7 @@ If you prefer to run the commands manually, you can use the following Make comma
 * `make logs`: View logs
 * `make shell`: Access the Airflow shell
 
-## Project Structure
+### Project Structure
 -----------------
 
 * `dags/price_improvement_dag.py`: The main Airflow DAG file
@@ -57,7 +56,7 @@ If you prefer to run the commands manually, you can use the following Make comma
 * `Makefile`: Contains shortcuts for common commands
 * `setup.sh`: Script to automate the entire setup process
 
-## Customization
+### Customization
 -------------
 
 To modify the analysis or add new features:
@@ -66,45 +65,26 @@ To modify the analysis or add new features:
 2. Rebuild the Docker images using `make build`
 3. Restart the services using `make down` followed by `make up`
 
-## Testing
+### Testing
 ------
 
 This project includes both unit tests and end-to-end tests for the Airflow DAG.
 
-To run all tests:
-```Makefile
-make test
-```
-To run only unit tests:
-```Makefile
-make test-unit
-```
-To run only end-to-end tests:
-```
-make test-e2e
-```
+* `make test`: Run all tests
+* `make test-unit`: Run only unit tests
+* `make test-e2e`: Run only end-to-end tests
 
-Tests are automatically run during the setup process. If you make changes to the DAG, make sure to run the tests again to ensure everything is working correctly.
-
-## Accessing Fetched Data
+### Accessing Fetched Data
 ---------------------
 
 To access the fetched data:
-```sh
-psql -h localhost -p 5432 -U airflow -d airflow
-```
-Then, you can query the data using SQL:
-```sql
-SELECT * FROM price_improvement;
-```
-```sql
-SELECT * FROM baseline_prices;
-```
-```sql
-SELECT * FROM cow_swap_data;
-```
 
-## Troubleshooting
+1. `psql -h localhost -p 5432 -U airflow -d airflow`
+2. `SELECT * FROM price_improvement;`
+3. `SELECT * FROM baseline_prices;`
+4. `SELECT * FROM cow_swap_data;`
+
+### Troubleshooting
 -----------------
 
 If you encounter any issues:
@@ -113,20 +93,14 @@ If you encounter any issues:
 2. Ensure all required ports are available (8080 for Airflow webserver)
 3. Try stopping all services with `make down`, then start again with `make up`
 4. Create dags, logs and plugins folder inside the project directory
-```bash
-mkdir ./dags ./logs ./plugins
-```
 5. Set user permissions for Airflow to your current user
-```bash
-echo -e "AIRFLOW_UID=$(id -u)\nAIRFLOW_GID=0" > .env
-```
 
-## License
+### License
 -------
 
 MIT License
 
-## TODO:
+### TODO
 ------
 
 * fix e2e in actions during merge to main
