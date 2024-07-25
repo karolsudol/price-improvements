@@ -1,69 +1,73 @@
 # CoW Swap Price Improvement Analysis
-
-This project sets up an Airflow environment to analyze the price improvement of CoW Swap compared to the average market.
-Dag is marked as failed when no data was extracted / calculated.
-
+======================================================
 
 ## Prerequisites
+---------------
 
-- Docker
-- Docker Compose
-- Make
-- DUNE_API_KEY: set in airflow variables in UI or:
-```sh
-airflow variables set DUNE_API_KEY {your_dune_api_key}
-airflow variables set DUNE_QUERY_ID 3940146
-
-```
+* Docker
+* Docker Compose
+* Make
 
 ## Quick Start
+-------------
 
 To set up and run the entire project, simply execute:
 ```sh
 chmod +x setup.sh
 ./setup.sh
 ```
-
 This script will:
+
 1. Check if Docker and Docker Compose are installed
 2. Build the necessary Docker images
 3. Initialize Airflow
 4. Start the Airflow services
 5. Display the logs
 
-Once the setup is complete, you can access the Airflow web interface at http://localhost:8080 with the following credentials:
-- Username: admin
-- Password: admin
+Once the setup is complete, you can access the Airflow web interface at [http://localhost:8080](http://localhost:8080) with the following credentials:
+
+* Username: admin
+* Password: admin
+* Make sure to set airflow variables:
+```sh
+airflow variables set DUNE_API_KEY {your_dune_api_key}
+airflow variables set DUNE_QUERY_ID 3940146
+```
 
 ## Manual Setup
+-------------
 
 If you prefer to run the commands manually, you can use the following Make commands:
 
-- `make build`: Build the Docker images
-- `make init`: Initialize Airflow
-- `make up`: Start Airflow services
-- `make down`: Stop Airflow services
-- `make logs`: View logs
-- `make shell`: Access the Airflow shell
+* `make build`: Build the Docker images
+* `make init`: Initialize Airflow
+* `make up`: Start Airflow services
+* `make down`: Stop Airflow services
+* `make logs`: View logs
+* `make shell`: Access the Airflow shell
 
 ## Project Structure
+-----------------
 
-- `dags/price_improvement_dag.py`: The main Airflow DAG file
-- `dbt_project/` DBT project config example - includes the DBT models and seeds
-- `Dockerfile`: Defines the Docker image for Airflow
-- `docker-compose.yml`: Defines the services (Airflow, PostgreSQL)
-- `requirements.txt`: Lists the Python dependencies
-- `Makefile`: Contains shortcuts for common commands
-- `setup.sh`: Script to automate the entire setup process
+* `dags/price_improvement_dag.py`: The main Airflow DAG file
+* `dbt_project/` DBT project config example - includes the DBT models and seeds
+* `Dockerfile`: Defines the Docker image for Airflow
+* `docker-compose.yml`: Defines the services (Airflow, PostgreSQL)
+* `requirements.txt`: Lists the Python dependencies
+* `Makefile`: Contains shortcuts for common commands
+* `setup.sh`: Script to automate the entire setup process
 
 ## Customization
+-------------
 
 To modify the analysis or add new features:
+
 1. Edit the `dags/price_improvement_dag.py` file
 2. Rebuild the Docker images using `make build`
 3. Restart the services using `make down` followed by `make up`
 
 ## Testing
+------
 
 This project includes both unit tests and end-to-end tests for the Airflow DAG.
 
@@ -71,40 +75,40 @@ To run all tests:
 ```Makefile
 make test
 ```
-
 To run only unit tests:
 ```Makefile
 make test-unit
 ```
-
 To run only end-to-end tests:
 ```
-make test-e2e   
+make test-e2e
 ```
 
 Tests are automatically run during the setup process. If you make changes to the DAG, make sure to run the tests again to ensure everything is working correctly.
 
-## Acces Fetched Data
+## Accessing Fetched Data
+---------------------
 
+To access the fetched data:
 ```sh
 psql -h localhost -p 5432 -U airflow -d airflow
 ```
-
+Then, you can query the data using SQL:
 ```sql
 SELECT * FROM price_improvement;
 ```
-
 ```sql
 SELECT * FROM baseline_prices;
 ```
-
 ```sql
 SELECT * FROM cow_swap_data;
 ```
 
 ## Troubleshooting
+-----------------
 
 If you encounter any issues:
+
 1. Check the logs using `make logs`
 2. Ensure all required ports are available (8080 for Airflow webserver)
 3. Try stopping all services with `make down`, then start again with `make up`
@@ -118,16 +122,18 @@ echo -e "AIRFLOW_UID=$(id -u)\nAIRFLOW_GID=0" > .env
 ```
 
 ## License
+-------
+
 MIT License
 
 ## TODO:
-- fix e2e in actions during merge to main
-- model the data tables better
-- build better analytics from the results - with dashboards and thershold alerts
-- set Airflow in the cloud
-- create data warehouse separating storage and compute
-- set DBT as query version control tool
-- module out the DBT models and seeds
-- add schema modules etc
+------
 
-
+* fix e2e in actions during merge to main
+* model the data tables better
+* build better analytics from the results - with dashboards and threshold alerts
+* set Airflow in the cloud
+* create data warehouse separating storage and compute
+* set DBT as query version control tool
+* module out the DBT models and seeds
+* add schema modules etc
